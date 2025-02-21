@@ -49,8 +49,10 @@ export async function getArxivIdsForDate(targetDate: DateMatchable): Promise<str
     const res = await fetch('https://arxiv.org/list/cs.AI/recent?skip=0&show=2000');
     const html = await res.text();
 
+
     const doc = new DOMParser().parseFromString(html, "text/html");
     if (!doc) return [];
+
 
     // Convert JavaScript date to arXiv's display format (1-based month)
     const targetYear = targetDate.getFullYear();

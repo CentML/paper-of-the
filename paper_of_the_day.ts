@@ -1,6 +1,6 @@
 import OpenAI from 'jsr:@openai/openai'; // OpenAI client for CentML serverless API
 import { getArxivIdsForDate, Paper } from './lib/arxiv.ts';
-import { tweetThread } from './lib/twitter.ts';
+import { tweet } from './lib/twitter.ts';
 
 /**
  * Determines if paper aligns with CentML's focus on AI efficiency
@@ -92,11 +92,11 @@ async function mostImpactful(paper1: Paper, paper2: Paper): Promise<Paper> {
  * @param threadLength - Number of tweets in thread
  * @returns Promise resolving to array of tweet strings
  */
-async function summarizeWithTweetThread(
+async function summarize(
   paper: Paper,
   summaryPrompt: string,
-  threadLength: number
-): Promise<string[]> {
+  words: number
+): Promise<string> {
     const model = "deepseek-ai/DeepSeek-R1";
     const client = new OpenAI({
         apiKey: Deno.env.get('CENTML_API_KEY'),
@@ -108,11 +108,11 @@ async function summarizeWithTweetThread(
       messages: [
         { 
           role: "system", 
-          content: "you are an expert at summarizing information for mass consumption on Twittier/X" 
+          content: "you are an expert at summarizing information for mass consumption on Twittier/X (long post, not a tweet), with hashtags but one log post." 
         },
         { 
           role: 'user', 
-          content: `Create ${threadLength}-tweet summary thread of the following paper as a JSON array of strings. Each tweet (string) should only be 280 characters at most! ${summaryPrompt} Arxid Id: ${paper.arxivId} Paper:\n${await paper.text()}`
+          content: `Create a approximately ${words} word summary of the following paper. ${summaryPrompt} Arxid Id: ${paper.arxivId} Paper:\n${await paper.text()}`
         }
       ],
       model: model,
@@ -132,15 +132,7 @@ async function summarizeWithTweetThread(
 
     // 2. Remove code block markers, *including* the newline
     answer = answer.replace(/^```json\n|```$/g, '');
-
-    // Parse JSON with error handling
-    try {
-        return JSON.parse(answer);
-    } catch(err) {
-        console.error("JSON parse error:", err);
-        console.error(answer)
-        return [];
-    }
+    return answer
 }
 
 /**
@@ -154,18 +146,19 @@ async function workflow() {
 
     console.log("Starting workflow...");
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 6);
+    const today = new Date();
 
     // Extract IDs for target date
-    const arxivIds = await getArxivIdsForDate(yesterday);
+    const arxivIds = await getArxivIdsForDate(today);
 
     console.log(`Found ${arxivIds.length} Arxid IDs`);
 
     // Processing pipeline
     let leadingPaper: Paper | null = null;
-    let processed = 0;    
+    let processed = 0; 
+    const total = arxivIds.length;   
     for (const id of arxivIds) {
+        processed++;
         // Rate limiting and testing safeguard
         await new Promise(r => setTimeout(r, 1000));
 
@@ -174,10 +167,10 @@ async function workflow() {
 
         // Alignment check
         if (!await alignedWithCentML(await paper.abstract())) {
-            console.log(`Skipping ${id} - not aligned`);
+            console.log(`${processed}/${total} - Skipping ${id} - not aligned`);
             continue;
         }
-        console.log(`Processing ${id} - aligned`);
+        console.log(`${processed}/${total} - Processing ${id} - aligned`);
 
         // Comparative evaluation
         leadingPaper = leadingPaper 
@@ -185,28 +178,19 @@ async function workflow() {
           : paper;
 
         console.log("Current leader:", leadingPaper.arxivId);
-        if (++processed >= 2) break; 
+        if (processed > 1) break
     }
 
     // Generate social media content
     if (leadingPaper) {
         console.log("Selected paper:", leadingPaper.arxivId);        
-        const thread = await summarizeWithTweetThread(
+        const summary = await summarize(
           leadingPaper,
-          `The tone should be academic. Each tweet should be 
-           numbered correctly. 
-           The first tweet should end with "This paper selected and 
-           summarized by #AgenticAI using @CentML serverless platform. 
-           The first tweet should start with a hook which describes 
-           the thread and entices the reader to read it. The last
-           tweet should start with "@CentML thanks" then list the authors 
-           by name. Include a link to the  abstract. The rest of the tweets 
-           should summarize the interesting
-           details of the paper."`,
-          12
+              `The tone should be academic. No need for section titles, just a couple of paragraphs. The summary should start with "@CentML presents the paper of the day:" then a catchy hook which entices the reader to read it. Like a news paper headline. The final sentences of the summary should start with "This paper selected and summarized by #AgenticAI using the @CentML serverless platform". "@CentML thanks" then list the authors by name. Try to include them all. Include the url to the abstract and the github repository if it exists. Don't wrap the url in markdown, just use the plain url as this is for Twitter/X. The rest of sentences/paragraphs should summarize the interesting details of the paper."`,
+          2000
         );
-        console.log("Twitter Thread:", thread);
-        //tweetThread(thread)
+        console.log("Twitter post:", summary);
+        //tweet(summary)
 
     }
 }
