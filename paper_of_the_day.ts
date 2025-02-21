@@ -1,5 +1,6 @@
 import OpenAI from 'jsr:@openai/openai'; // OpenAI client for CentML serverless API
 import { getArxivIdsForDate, Paper } from './lib/arxiv.ts';
+import { tweetThread } from './lib/twitter.ts';
 
 /**
  * Determines if paper aligns with CentML's focus on AI efficiency
@@ -107,11 +108,11 @@ async function summarizeWithTweetThread(
       messages: [
         { 
           role: "system", 
-          content: "you are an expert at summarizing information for mass consumption" 
+          content: "you are an expert at summarizing information for mass consumption on Twittier/X" 
         },
         { 
           role: 'user', 
-          content: `Create ${threadLength}-tweet thread as JSON array. ${summaryPrompt}:\n${await paper.text()}`
+          content: `Create ${threadLength}-tweet summary thread of the following paper as a JSON array of strings. Each tweet (string) should only be 280 characters at most! ${summaryPrompt} Arxid Id: ${paper.arxivId} Paper:\n${await paper.text()}`
         }
       ],
       model: model,
@@ -153,9 +154,8 @@ async function workflow() {
 
     console.log("Starting workflow...");
 
-    // Calculate target date (currently set to 4 days ago for testing)
     const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 5);
+    yesterday.setDate(yesterday.getDate() - 6);
 
     // Extract IDs for target date
     const arxivIds = await getArxivIdsForDate(yesterday);
@@ -163,7 +163,8 @@ async function workflow() {
     console.log(`Found ${arxivIds.length} Arxid IDs`);
 
     // Processing pipeline
-    let leadingPaper: Paper | null = null;    
+    let leadingPaper: Paper | null = null;
+    let processed = 0;    
     for (const id of arxivIds) {
         // Rate limiting and testing safeguard
         await new Promise(r => setTimeout(r, 1000));
@@ -184,24 +185,29 @@ async function workflow() {
           : paper;
 
         console.log("Current leader:", leadingPaper.arxivId);
+        if (++processed >= 2) break; 
     }
 
     // Generate social media content
     if (leadingPaper) {
         console.log("Selected paper:", leadingPaper.arxivId);        
-        const summary = await summarizeWithTweetThread(
+        const thread = await summarizeWithTweetThread(
           leadingPaper,
-          `The tone should be academic. 
+          `The tone should be academic. Each tweet should be 
+           numbered correctly. 
            The first tweet should end with "This paper selected and 
            summarized by #AgenticAI using @CentML serverless platform. 
            The first tweet should start with a hook which describes 
            the thread and entices the reader to read it. The last
-           tweet @CentML thanks the authors by Twitter handle 
-           if available, otherwise just by name. The rest of the 
-           tweets should summarize the interesting details of the paper."`,
+           tweet should start with "@CentML thanks" then list the authors 
+           by name. Include a link to the  abstract. The rest of the tweets 
+           should summarize the interesting
+           details of the paper."`,
           12
         );
-        console.log("Twitter Thread:", summary);
+        console.log("Twitter Thread:", thread);
+        //tweetThread(thread)
+
     }
 }
 
