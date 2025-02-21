@@ -143,12 +143,10 @@ async function summarize(
  * 4. Generate social media content
  */
 async function workflow() {    
-
     console.log("Starting workflow...");
 
-    const today = new Date();
-
     // Extract IDs for target date
+    const today = new Date();
     const arxivIds = await getArxivIdsForDate(today);
 
     console.log(`Found ${arxivIds.length} Arxid IDs`);
@@ -178,7 +176,6 @@ async function workflow() {
           : paper;
 
         console.log("Current leader:", leadingPaper.arxivId);
-        if (processed > 1) break
     }
 
     // Generate social media content
@@ -186,14 +183,23 @@ async function workflow() {
         console.log("Selected paper:", leadingPaper.arxivId);        
         const summary = await summarize(
           leadingPaper,
-              `The tone should be academic. No need for section titles, just a couple of paragraphs. The summary should start with "@CentML presents the paper of the day:" then a catchy hook which entices the reader to read it. Like a news paper headline. The final sentences of the summary should start with "This paper selected and summarized by #AgenticAI using the @CentML serverless platform". "@CentML thanks" then list the authors by name. Try to include them all. Include the url to the abstract and the github repository if it exists. Don't wrap the url in markdown, just use the plain url as this is for Twitter/X. The rest of sentences/paragraphs should summarize the interesting details of the paper."`,
+              `The tone should be academic. No need for section titles, just a couple of paragraphs. The summary should start with "@CentML presents today's paper of the day:" then a catchy hook which entices the reader to read it. Like a news paper headline. The final sentences of the summary should start with "This paper selected and summarized by #AgenticAI using the @CentML serverless platform". "@CentML thanks" then list the authors by name. Try to include them all. Include the url to the abstract and the github repository if it exists. Don't wrap the url in markdown, just use the plain url as this is for Twitter/X. The rest of sentences/paragraphs should summarize the interesting details of the paper."`,
           2000
         );
         console.log("Twitter post:", summary);
-        //tweet(summary)
-
+    
+        // check if ENABLE_TWEET is set to true before tweeting
+        if (Deno.env.get("ENABLE_TWEET") === "true") {
+            await tweet(summary);
+        }
     }
 }
 
-// Execute workflow
+// Run daily at 4 or 5am ET 
+Deno.cron("paper of the day", "01 9 * * *", async () => {
+    // Execute workflow
+    await workflow();
+}); 
+
 await workflow();
+
