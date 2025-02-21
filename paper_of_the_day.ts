@@ -59,11 +59,11 @@ async function mostImpactful(paper1: Paper, paper2: Paper): Promise<Paper> {
       messages: [
         { 
           role: "system", 
-          content: "you are helpful" 
+          content: "you are helpful and follow instructions percisely" 
         },
         { 
           role: 'user', 
-          content: `Which paper focuses more on AI cost reduction? We're looking specifically for techniques/strategies/algorithms that can increase the effeciency/reduce the cost of LLMs, Reasoning Models, or machine learning/neural netorks/ai broadly. It is essential that the finaly output answers only 1 or 2 and nothing else. Here's the papers:\nPaper 1: ${await paper1.abstract()}\n\nPaper 2: ${await paper2.abstract()}`
+          content: `Which paper focuses more on AI cost reduction? We're looking specifically for techniques/strategies/algorithms that can increase the effeciency/reduce the cost of LLMs, Reasoning Models, or machine learning/neural netorks/ai broadly. It is essential that the final output answers only 1 or 2 and nothing else. This is very important. Nothing else! Here's the papers:\nPaper 1: ${await paper1.abstract()}\n\nPaper 2: ${await paper2.abstract()}`
         }
       ],
       model: model,
@@ -183,7 +183,7 @@ async function workflow() {
         console.log("Selected paper:", leadingPaper.arxivId);        
         const summary = await summarize(
           leadingPaper,
-              `The tone should be academic. No need for section titles, just a couple of paragraphs. The summary should start with "@CentML presents today's paper of the day:" then a catchy hook which entices the reader to read it. Like a news paper headline. The final sentences of the summary should start with "This paper selected and summarized by #AgenticAI using the @CentML serverless platform". "@CentML thanks" then list the authors by name. Try to include them all. Include the url to the abstract and the github repository if it exists. Don't wrap the url in markdown, just use the plain url as this is for Twitter/X. The rest of sentences/paragraphs should summarize the interesting details of the paper."`,
+              `The tone should be academic. No need for section titles, just a couple of paragraphs. The summary should start with "@CentML_Inc presents today's paper of the day:" then a catchy hook which entices the reader to read it. Like a news paper headline. The final sentences of the summary should start with "This paper selected and summarized by #AgenticAI using the @CentML_Inc serverless platform". "@CentML_Inc thanks" then list the authors by name. Try to include them all. Include the url to the abstract and the github repository if it exists. Don't wrap the url in markdown, just use the plain url as this is for Twitter/X. The rest of sentences/paragraphs should summarize the interesting details of the paper."`,
           2000
         );
         console.log("Twitter post:", summary);
