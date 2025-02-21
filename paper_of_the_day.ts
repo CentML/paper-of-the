@@ -201,5 +201,4 @@ Deno.cron("paper of the day", "01 9 * * *", async () => {
     await workflow();
 }); 
 
-await workflow();
 
