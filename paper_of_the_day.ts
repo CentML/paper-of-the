@@ -184,7 +184,7 @@ async function workflow() {
         const summary = await summarize(
           leadingPaper,
               `The tone should be academic. No need for section titles, just a couple of paragraphs. The summary should start with "@CentML_Inc presents today's paper of the day:" then a catchy hook which entices the reader to read it. Like a news paper headline. The final sentences of the summary should start with "This paper selected and summarized by #AgenticAI using the @CentML_Inc serverless platform". "@CentML_Inc thanks" then list the authors by name. Try to include them all. Include the url to the abstract and the github repository if it exists. Don't wrap the url in markdown, just use the plain url as this is for Twitter/X. The rest of sentences/paragraphs should summarize the interesting details of the paper."`,
-          4000
+          3000
         );
         console.log("Twitter post:", summary);
     
