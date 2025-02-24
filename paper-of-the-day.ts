@@ -23,7 +23,7 @@ async function alignedWithCentML(text: string): Promise<boolean> {
         },
         { 
           role: 'user', 
-          content: `Does this abstract focus on AI efficiency/cost reduction? Answer yes/no:\n${text}` 
+          content: `Does this abstract focus on efficiency or cost reduction in relation to either Machine Learning (ML) generally or Large Lanaguage Models (LLM) specifically? Answer yes/no:\n${text}` 
         }
       ],
       model: model,
@@ -54,34 +54,74 @@ async function mostImpactful(paper1: Paper, paper2: Paper): Promise<Paper> {
         baseURL: "https://api.centml.com/openai/v1"
     });
 
-    // Stream comparison request
-    const stream = await client.chat.completions.create({
-      messages: [
+
+    const messages: Array<OpenAI.ChatCompletionMessageParam> = [
         { 
           role: "system", 
-          content: "you are helpful and follow instructions percisely" 
+          content: "you are an expert at comparing academic papers while following instructions" 
         },
         { 
           role: 'user', 
-          content: `Which paper focuses more on AI cost reduction? We're looking specifically for techniques/strategies/algorithms that can increase the effeciency/reduce the cost of LLMs, Reasoning Models, or machine learning/neural netorks/ai broadly. It is essential that the final output answers only 1 or 2 and nothing else. This is very important. Nothing else! Here's the papers:\nPaper 1: ${await paper1.abstract()}\n\nPaper 2: ${await paper2.abstract()}`
+          content: `Which paper focuses more on quantifiable effeciency improvments or cost reduction? We're looking specifically for techniques/strategies/algorithms that can increase the effeciency/reduce the cost of LLMs, Reasoning Models, or machine learning/neural netorks/ai broadly. Here's the papers:\nPaper 1: ${await paper1.abstract()}\n\nPaper 2: ${await paper2.abstract()}. Answer only 1 or 2, nothing else.`
         }
-      ],
+    ]
+    // Stream comparison request
+    const stream = await client.chat.completions.create({
+      messages: messages,
       model: model,
       stream: true
     });
 
     // Process response chunks
     let completion = '';
+    let reasoningContent = '';
     for await (const chunk of stream) {
         completion += chunk.choices[0]?.delta?.content || '';
+        reasoningContent += chunk.choices[0]?.delta?.reasoning_content || '';
     }
 
-    console.log(completion)
+    console.log("reasoning: ", reasoningContent)
+    console.log("completion: ", completion)
 
     // Clean and parse response
-    const rawAnswer = completion.split("</think>").pop() || '';
-    const answer = rawAnswer.replace(/\s+/g, ' ').trim();
-    
+    let answer = completion.replace(/\s+/g, ' ').trim();
+    if (!answer.startsWith("1") && !answer.startsWith("2")) {
+
+        console.log("Invalid response, asking for clarification")
+        messages.push({
+            role: "assistant",
+            content: reasoningContent + completion
+        })
+        messages.push({
+            role: "user",
+            content: "Please answer with 1 or 2 ONLY."
+        })
+        
+        // Stream comparison request
+        const stream = await client.chat.completions.create({
+        messages: messages,
+        model: model,
+        stream: true
+        });
+
+        // Process response chunks
+        let updatedCompletion = '';
+        let updatedReasoningContent = '';
+        for await (const chunk of stream) {
+            updatedCompletion += chunk.choices[0]?.delta?.content || '';
+            updatedReasoningContent += chunk.choices[0]?.delta?.reasoning_content || '';
+        }
+        answer = completion.replace(/\s+/g, ' ').trim();
+        console.log("updated reasoning: ", updatedReasoningContent)
+        console.log("updated completion:", updatedCompletion)
+    }
+
+    // safety,sanity check, something really went off the rails in in the second attempt
+    // we can't proceed with the comparison
+    if (!answer.startsWith("1") && !answer.startsWith("2")) {
+        throw new Error("Invalid response. Please answer with 1 or 2 ONLY.")
+    }
+
     return answer.startsWith("1") ? paper1 : paper2;
 }
 
@@ -183,7 +223,7 @@ async function workflow() {
         console.log("Selected paper:", leadingPaper.arxivId);        
         const summary = await summarize(
           leadingPaper,
-              `The tone should be academic. No need for section titles, just a couple of paragraphs. The summary should start with "@CentML_Inc presents today's paper of the day:" then a catchy hook which entices the reader to read it. Like a news paper headline. The final sentences of the summary should start with "This paper selected and summarized by #AgenticAI using the @CentML_Inc serverless platform". "@CentML_Inc thanks" then list the authors by name. Try to include them all. Include the url to the abstract and the github repository if it exists. Don't wrap the url in markdown, just use the plain url as this is for Twitter/X. The rest of sentences/paragraphs should summarize the interesting details of the paper."`,
+              `The tone should be academic. No need for section titles, just a couple of paragraphs. The summary should start with "@CentML_Inc presents today's paper of the day:" then a catchy hook which entices the reader to read it. Like a news paper headline. The final sentences of the summary should start with "This paper selected and summarized by #AgenticAI using the @CentML_Inc serverless platform". "@CentML_Inc thanks" then list the authors by name. Try to include them all. Include the url to the abstract and the github repository if it exists. Don't use any markdown through the post. Don't bold things. Just use the plain url as this is for Twitter/X. The rest of sentences/paragraphs should summarize the interesting details of the paper. Include an appropriate amount of relevant Twitter hash tags."`,
           3000
         );
         console.log("Twitter post:", summary);
@@ -196,9 +236,9 @@ async function workflow() {
 }
 
 // Run daily at 4 or 5am ET 
-Deno.cron("paper of the day", "01 9 * * *", async () => {
+//Deno.cron("paper of the day", "01 9 * * *", async () => {
     // Execute workflow
     await workflow();
-}); 
+//}); 
 
 
