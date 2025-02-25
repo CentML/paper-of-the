@@ -227,6 +227,9 @@ async function workflow() {
           : paper;
 
         console.log("Current leader:", leadingPaper.arxivId);
+
+        // Early stopping condition
+        if (processed > 1) break;
     }
 
     // Generate social media content
@@ -234,7 +237,7 @@ async function workflow() {
         console.log("Selected paper:", leadingPaper.arxivId);        
         const summary = await summarize(
           leadingPaper,
-              `The tone should be academic. No need for section titles, just a couple of paragraphs. The summary should start with "@CentML_Inc presents today's paper of the day:" then a catchy hook which entices the reader to read it. Like a news paper headline. The final sentences of the summary should start with "This paper selected and summarized by #AgenticAI using the @CentML_Inc serverless platform". "@CentML_Inc thanks" then list the authors by name as they appear in the paper. Include them all. Include the url to the abstract and the github repository if it exists. Don't use any markdown throughout the post. Don't bold things using *. Use plain urls as this is for Twitter/X. The rest of sentences/paragraphs should summarize the interesting details of the paper. Include an appropriate amount of relevant Twitter hash tags."`,
+              `The tone should be academic. No need for section titles, just a couple of paragraphs. The summary should start with "@CentML_Inc presents today's paper of the day:" then a catchy hook which entices the reader to read it. Like a news paper headline. The final sentences of the summary should start with "This paper selected and summarized by #AgenticAI using the @CentML_Inc serverless platform. The agent sifted through ${arxivIds.length} papers today.". "@CentML_Inc thanks" then list the authors by name as they appear in the paper. Include them all. Include the url to the abstract and the github repository if it exists. Don't use any markdown throughout the post. Don't bold things using *. Use plain urls as this is for Twitter/X. The rest of sentences/paragraphs should summarize the interesting details of the paper. Include an appropriate amount of relevant Twitter hash tags."`,
           3000
         );
         console.log("Twitter post:", summary);
@@ -248,7 +251,7 @@ async function workflow() {
 
 // Run daily at 4 or 5am ET 
 //Deno.cron("paper of the day", "01 9 * * *", async () => {
-Deno.cron("paper of the day", "40 13 * * *", async () => {
+Deno.cron("paper of the day", "40 15 * * *", async () => {
     // Execute workflow
     await workflow();
 }); 

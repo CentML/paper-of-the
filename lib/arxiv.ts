@@ -1,4 +1,6 @@
 import { DOMParser } from "jsr:@b-fuze/deno-dom"; // DOM parser for Deno (arxiv HTML parsing)
+import pdfParse from "npm:pdf-parse";
+import { Buffer } from "node:buffer";
 
 /**
  * Interface for date-like objects to handle arXiv's date format requirements
@@ -17,6 +19,7 @@ export class Paper {
 
     public readonly arxivId: string
     private _abstract: string = ""
+    private _text: string = ""
 
     constructor(arxivId: string) {
         this.arxivId = arxivId;
@@ -34,7 +37,40 @@ export class Paper {
      * @returns Promise resolving to cleaned paper content
      */
     async text(): Promise<string> {
-        return await extractPaperText(this.arxivId);
+        if (!this._text) {
+            this._text = await extractPaperText(this.arxivId);
+        }
+        return this._text;        
+    }
+
+     /**
+     * Marshals an array of Paper objects to a JSON string.
+     * @param papers The array of Paper objects to marshal.
+     * @param fetchData If true, fetches the abstract and text before marshaling.
+     * @returns A promise that resolves to the JSON string.
+     */
+    public static async marshalPapers(papers: Paper[], fetchData: boolean = false): Promise<string> {
+        if (fetchData) {
+            await Promise.all(papers.map(async paper => {
+                await paper.abstract();
+                await paper.text();
+            }));
+        }
+        return JSON.stringify(papers);
+    }
+
+    /**
+     * Unmarshals a JSON string to an array of Paper objects.
+     * @param jsonString The JSON string to unmarshal.
+     * @returns An array of Paper objects.
+     */
+    public static unmarshalPapers(jsonString: string): Paper[] {
+        const plainObjects = JSON.parse(jsonString);
+        return plainObjects.map((plainObj: any) => {
+            const paper = new Paper(plainObj.arxivId);
+            Object.assign(paper, plainObj);
+            return paper;
+        });
     }
 }
 
@@ -158,33 +194,16 @@ export async function getArxivAbstract(arxivId: string): Promise<string> {
  * @throws Error if paper structure is unexpected
  */
 async function extractPaperText(arxivId: string): Promise<string> {
-  const arxivUrl = `https://arxiv.org/html/${arxivId}v1`;
-  const response = await fetch(arxivUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch paper: ${response.status} ${response.statusText}`);
-  }
+    const arxivUrl = `https://arxiv.org/pdf/${arxivId}`;
+    const response = await fetch(arxivUrl);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch paper: ${response.status} ${response.statusText}`);
+    }
 
-  // Parse document structure
-  const html = await response.text();
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  if (!doc) throw new Error("Failed to parse HTML document");
-
-  // Extract main article content
-  const article = doc.querySelector('article.ltx_document');
-  if (!article) throw new Error("Paper article element not found");
-
-  // Process paragraphs and filter unwanted sections
-  return Array.from(article.querySelectorAll('p.ltx_p'))
-    .map(p => {
-      return p.textContent
-        .replace(/\s+/g, ' ')     // Collapse whitespace
-        .replace(/\u00a0/g, ' ')  // Replace non-breaking spaces
-        .trim();
-    })
-    .filter(text => 
-      text && 
-      !text.startsWith("References") && // Exclude bibliography
-      !text.match(/^arXiv:\d{4}\.\d{5}/) // Remove arXiv footer
-    )
-    .join('\n\n'); // Join paragraphs with double newlines
+    // Parse document structure
+    const arrayBuffer = await response.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const buffer = Buffer.from(uint8Array);
+    const data = await pdfParse(buffer);
+    return data.text;
 }
