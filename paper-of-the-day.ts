@@ -227,7 +227,6 @@ async function workflow() {
           : paper;
 
         console.log("Current leader:", leadingPaper.arxivId);
-
     }
 
     // Generate social media content
@@ -249,7 +248,7 @@ async function workflow() {
 
 // Run daily at 4 or 5am ET 
 //Deno.cron("paper of the day", "01 9 * * *", async () => {
-Deno.cron("paper of the day", "40 15 * * *", async () => {
+Deno.cron("paper of the day", "01 16 * * *", async () => {
     // Execute workflow
     await workflow();
 }); 
