@@ -228,8 +228,6 @@ async function workflow() {
 
         console.log("Current leader:", leadingPaper.arxivId);
 
-        // Early stopping condition
-        if (processed > 1) break;
     }
 
     // Generate social media content
