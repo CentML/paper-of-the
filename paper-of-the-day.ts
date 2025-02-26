@@ -249,9 +249,11 @@ async function workflow() {
 }
 
 // Run daily at 4 or 5am ET 
-Deno.cron("paper of the day", "38 13 * * *", async () => {
+Deno.cron("paper of the day", "1 9 * * *", async () => {
     // Execute workflow
     await workflow();
+    console.log("workflow completed")
+    Deno.exit(0)
 }); 
 
 
