@@ -251,11 +251,7 @@ async function workflow() {
           ? await mostImpactful(leadingPaper, paper)
           : paper;
 
-        console.log("Current leader:", leadingPaper.arxivId);
-
-        if (processed > 1) {
-            break;
-        }
+        console.log("Current leader:", leadingPaper.arxivId);     
     }
 
     // Generate social media content
