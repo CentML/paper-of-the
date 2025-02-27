@@ -282,7 +282,6 @@ Deno.cron("paper of the day", "1 9 * * *", async () => {
     // Execute workflow
     await workflow();
     console.log("workflow completed")
-    Deno.exit(0)
 }); 
 
 
